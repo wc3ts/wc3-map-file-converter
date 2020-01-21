@@ -1,7 +1,7 @@
 {
   "name": "wc3-ts-map-files",
   "version": "0.0.1",
-  "description": "Library to read Warcraft 3 map files.",
+  "description": "Warcraft 3 map file reader.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/wc3-ts/wc3-ts-map-files.git"
