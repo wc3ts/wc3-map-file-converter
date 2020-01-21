@@ -1,0 +1,26 @@
+{
+  "name": "wc3-ts-map-files",
+  "version": "0.0.1",
+  "description": "Library to read Warcraft 3 map files.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wc3-ts/wc3-ts-map-files.git"
+  },
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "wc3genjson": "./dist/generatejson.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^13.1.8",
+    "typescript": "^3.7.5"
+  },
+  "dependencies": {
+    "smart-buffer": "^4.1.0"
+  }
+}
