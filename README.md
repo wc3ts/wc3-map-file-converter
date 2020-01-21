@@ -1,5 +1,9 @@
-# Warcraft 3 Typescript Map Files
+# Warcraft 3 Map File Converter
 
-Warcraft 3 map file reader.
+Converts Warcraft 3 map files to json.
 
 **The unit reader only works for maps that require the expansion.**
+
+```
+wartojson mapDir outDir
+```

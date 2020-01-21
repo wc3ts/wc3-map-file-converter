@@ -1,7 +1,7 @@
 {
-  "name": "wc3-ts-map-files",
-  "version": "0.0.1",
-  "description": "Warcraft 3 map file reader.",
+  "name": "wc3-ts-map-file-converter",
+  "version": "0.1.0",
+  "description": "Warcraft 3 map file converter.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/wc3-ts/wc3-ts-map-files.git"
@@ -10,7 +10,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "wc3genjson": "./dist/generatejson.js"
+    "wartojson": "./dist/wartojson.js"
   },
   "scripts": {
     "build": "tsc",

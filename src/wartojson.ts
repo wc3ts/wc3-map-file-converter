@@ -5,10 +5,8 @@ import { readFileSync, writeFileSync } from 'fs';
 import { WarBuffer } from './warbuffer';
 import { info, unit, camera, region } from '.';
 
-const config = {
-    'mapDir': 'map.w3x',
-    'outDir': 'src/resources'
-};
+const mapDir = process.argv[2];
+const outDir = process.argv[3];
 
 const files = [
     {
@@ -34,7 +32,7 @@ const files = [
 ];
 
 for (const file of files) {
-    const buffer = new WarBuffer({ buff: readFileSync(join(config.mapDir, file.input)) });
+    const buffer = new WarBuffer({ buff: readFileSync(join(mapDir, file.input)) });
     const data = file.reader.read(buffer);
-    writeFileSync(join(config.outDir, file.output), JSON.stringify(data, null, 4));
+    writeFileSync(join(outDir, file.output), JSON.stringify(data, null, 4));
 }
