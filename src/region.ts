@@ -7,9 +7,9 @@ export interface Region {
     right: number;
     top: number;
     name: string;
-    creationNumber: number;
-    weatherId?: string;
-    ambientId: string;
+    id: number;
+    weather?: string;
+    ambient: string;
     color: RGBA;
 }
 
@@ -26,9 +26,10 @@ function readRegion(buffer: WarBuffer): Region {
     region.right = buffer.readFloatLE();
     region.top = buffer.readFloatLE();
     region.name = buffer.readStringNT();
-    region.creationNumber = buffer.readInt32LE();
-    region.weatherId = buffer.readFourCC();
-    region.ambientId = buffer.readStringNT();
+    region.id = buffer.readUInt32LE();
+    region.weather = buffer.readFourCC();
+    region.ambient = buffer.readStringNT();
     region.color = buffer.readRGBA();
+    // TODO is the really rgba or rgb and one unkown byte?
     return region;
 }
