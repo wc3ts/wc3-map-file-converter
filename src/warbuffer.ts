@@ -1,15 +1,18 @@
 import { SmartBuffer } from 'smart-buffer';
+import { strict } from 'assert';
 
 export interface RGBA {
     red: number;
     green: number;
     blue: number;
-    alpha: number; // probably just rgb with one byte padding
+    alpha: number;
 }
 
 export class WarBuffer extends SmartBuffer {
     readBool(): boolean {
-        return this.readUInt32LE() !== 0;
+        const value = this.readUInt32LE();
+        strict(value <= 1, `Boolean value: ${value} is greater than 1`);
+        return value === 1;
     }
 
     readChar(): string {
@@ -29,7 +32,7 @@ export class WarBuffer extends SmartBuffer {
         rgba.blue = this.readUInt8();
         rgba.green = this.readUInt8();
         rgba.red = this.readUInt8();
-        rgba.alpha = this.readUInt8();
+        rgba.alpha = this.readUInt8(); // TODO probably just rgb with one byte padding
         return rgba;
     }
 

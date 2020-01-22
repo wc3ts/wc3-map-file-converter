@@ -92,9 +92,7 @@ function readUnit(buffer: WarBuffer): Unit {
     unit.flags = buffer.readUInt8();
     unit.player = buffer.readUInt32LE();
 
-    // unknown
-    strict.equal(buffer.readUInt8(), 0);
-    strict.equal(buffer.readUInt8(), 0);
+    buffer.readBuffer(2); // TODO unknown
 
     unit.health = buffer.readInt32LE();
     unit.mana = buffer.readInt32LE();
@@ -142,7 +140,7 @@ function readUnit(buffer: WarBuffer): Unit {
             case 2:
                 return buffer.readUInt32LE() * 8;
             default:
-                throw Error(`Unkown random type ${unit.randomType}`);
+                throw Error(`Unknown random type ${unit.randomType}`);
         }
     }
 
