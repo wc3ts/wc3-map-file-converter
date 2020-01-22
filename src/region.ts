@@ -30,6 +30,5 @@ function readRegion(buffer: WarBuffer): Region {
     region.weather = buffer.readFourCC();
     region.ambient = buffer.readStringNT();
     region.color = buffer.readRGBA();
-    // TODO is the really rgba or rgb and one unkown byte?
     return region;
 }

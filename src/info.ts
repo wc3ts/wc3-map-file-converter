@@ -1,4 +1,5 @@
-import { WarBuffer } from './warbuffer';
+import { WarBuffer, RGBA } from './warbuffer';
+import { strict } from 'assert';
 
 export interface Info {
     name: string;
@@ -10,6 +11,7 @@ export interface Info {
     playableWidth: number;
     playableHeight: number;
     flags: number;
+    tileset: string;
     loadingScreen: {
         number: number;
         model: string;
@@ -17,8 +19,6 @@ export interface Info {
         title: string;
         subtitle: string;
     };
-
-    // TODO clean up
     gameDataSet: number;
     prologueText: string;
     prologueTitle: string;
@@ -27,26 +27,19 @@ export interface Info {
     fogStartZHeight: number;
     fogEndZHeight: number;
     fogDensity: number;
-    fogColor: number[];
+    fogColor: RGBA;
     weatherId: string;
     customSoundEnvironment: string;
     customLightTileset: number;
-    waterColor: number[];
+    waterColor: RGBA;
     prologueScreenModel: string;
-
     lua: boolean;
-
-    players: any[]; // TODO fix
-}
-
-export interface Location {
-    x: number;
-    y: number;
-}
-
-export interface Area {
-    height: number;
-    width: number;
+    players: Player[];
+    forces: Force[];
+    availableUpgrades: Upgrade[];
+    availableTechnology: Technology[];
+    randomUnitTables: RandomUnitTable[];
+    randomItemTables: RandomItemTable[];
 }
 
 export interface Player {
@@ -55,20 +48,74 @@ export interface Player {
     race: number,
     fixedStartLocation: boolean,
     name: string,
-    startLocation: Location
+    startLocation: {
+        x: number;
+        y: number;
+    };
+    allyLowPrioritiesFlags: number;
+    allyHighPrioritiesFlags: number;
+}
+
+export interface Force {
+    flags: number;
+    players: number; // if bit number i is 1 the player i is part of this force
+    name: string;
+}
+
+export interface Upgrade {
+    players: number; // if bit number i is 1 this change applies for player i
+    id?: string;
+    level: number;
+    availability: number;
+}
+
+export interface Technology {
+    players: number;
+    id?: string;
+}
+
+export interface RandomUnitTable {
+    number: number; name: string;
+    columns: number[];
+    rows: any[];
+}
+
+export interface RandomItemTable {
+    number: number;
+    name: string;
+    itemSets: any[][];
+}
+
+function readPlayer(buffer: WarBuffer): Player {
+    const player = {} as Player;
+    player.number = buffer.readUInt32LE();
+
+    buffer.readBuffer(8); // TODO unknown
+
+    player.type = buffer.readUInt32LE();
+    player.race = buffer.readUInt32LE();
+    player.fixedStartLocation = buffer.readUInt32LE() === 1;
+    player.name = buffer.readStringNT();
+    player.startLocation = {
+        x: buffer.readFloatLE(),
+        y: buffer.readFloatLE()
+    };
+    player.allyLowPrioritiesFlags = buffer.readUInt32LE();
+    player.allyHighPrioritiesFlags = buffer.readUInt32LE();
+    return player;
 }
 
 export function read(buffer: WarBuffer): Info {
     const version = buffer.readInt32LE();
+    strict.equal(version, 31, 'Unknown info version');
     const mapVersion = buffer.readInt32LE();
     const editorVersion = buffer.readInt32LE();
     const gameVersion = {
         major: buffer.readInt32LE(),
         minor: buffer.readInt32LE(),
         patch: buffer.readInt32LE(),
-        build: buffer.readInt32LE(),
+        build: buffer.readInt32LE()
     };
-    // console.log(version, mapVersion, editorVersion, gameVersion);
 
     const info = {} as Info;
     info.name = buffer.readStringNT();
@@ -79,9 +126,8 @@ export function read(buffer: WarBuffer): Info {
     info.cameraComplements = Array.from({ length: 4 }, () => buffer.readInt32LE());
     info.playableWidth = buffer.readUInt32LE();
     info.playableHeight = buffer.readUInt32LE();
-    info.flags = buffer.readUInt32LE(); // TODO break down into values
-
-    buffer.readBuffer(1); // TODO tileset
+    info.flags = buffer.readUInt32LE();
+    info.tileset = buffer.readChar();
 
     info.loadingScreen = {
         number: buffer.readUInt32LE(),
@@ -102,36 +148,79 @@ export function read(buffer: WarBuffer): Info {
     info.fogStartZHeight = buffer.readFloatLE();
     info.fogEndZHeight = buffer.readFloatLE();
     info.fogDensity = buffer.readFloatLE();
-    info.fogColor = Array.from({ length: 4 }, () => buffer.readUInt8());
+    info.fogColor = buffer.readRGBA();
 
     info.weatherId = buffer.readBuffer(4).toString();
     info.customSoundEnvironment = buffer.readStringNT();
     info.customLightTileset = buffer.readUInt8();
-    info.waterColor = Array.from({ length: 4 }, () => buffer.readUInt8());
+    info.waterColor = buffer.readRGBA();
 
-    info.lua = buffer.readUInt32LE() === 1;
+    info.lua = buffer.readBool();
 
-    info.players = Array.from({ length: buffer.readUInt32LE() }, () => {
-        const player = {} as any;
-        player.internal_number = buffer.readUInt32LE();
-        player.type = buffer.readUInt32LE();
-        player.race = buffer.readUInt32LE();
-        buffer.readBuffer(4); // TODO unknown
-        buffer.readBuffer(4); // TODO unknown
-        player.fixed_start_position = buffer.readUInt32LE() === 1;
-        player.name = buffer.readStringNT();
-        player.starting_position_x = buffer.readFloatLE();
-        player.starting_position_y = buffer.readFloatLE();
-        buffer.readBuffer(4); // TODO ally low priorities flags
-        buffer.readBuffer(4); // TODO ally high priorities flags
-        return player;
-    });
+    // TODO adding a third player does not work
+    info.players = buffer.readArray(readPlayer);
 
-    // TODO available upgrades
+    buffer.readBuffer(8); // TODO unknown
 
-    // TODO available tech
-
-    // TODO random unit tables
-
+    info.forces = buffer.readArray(readForce);
+    info.availableUpgrades = buffer.readArray(readUpgrade);
+    info.availableTechnology = buffer.readArray(readTechnology);
+    info.randomUnitTables = buffer.readArray(readRandomUnitTable);
+    info.randomItemTables = buffer.readArray(readRandomItemTable);
     return info;
+}
+
+function readForce(buffer: WarBuffer): Force {
+    const force = {} as Force;
+    force.flags = buffer.readUInt32LE();
+    force.players = buffer.readUInt32LE();
+    force.name = buffer.readStringNT();
+    return force;
+}
+
+function readUpgrade(buffer: WarBuffer): Upgrade {
+    const upgrade = {} as Upgrade;
+    upgrade.players = buffer.readUInt32LE();
+    upgrade.id = buffer.readFourCC();
+    upgrade.level = buffer.readUInt32LE();
+    upgrade.availability = buffer.readUInt32LE();
+    return upgrade;
+}
+
+function readTechnology(buffer: WarBuffer): Technology {
+    const technology = {} as Technology;
+    technology.players = buffer.readUInt32LE();
+    technology.id = buffer.readFourCC();
+    return technology;
+}
+
+function readRandomUnitTable(buffer: WarBuffer): RandomUnitTable {
+    const table = {} as RandomUnitTable;
+    table.number = buffer.readUInt32LE();
+    table.name = buffer.readStringNT();
+
+    const numColumns = buffer.readUInt32LE();
+    table.columns = Array.from({ length: numColumns }, () => buffer.readInt32LE());
+    table.rows = buffer.readArray(() => {
+        const row = {} as any;
+        row.chance = buffer.readUInt32LE();
+        row.ids = Array.from({ length: numColumns }, () => buffer.readFourCC());
+        return row;
+    });
+    return table;
+}
+
+function readRandomItemTable(buffer: WarBuffer): RandomItemTable {
+    const table = {} as RandomItemTable;
+    table.number = buffer.readUInt32LE();
+    table.name = buffer.readStringNT();
+    table.itemSets = buffer.readArray(() => {
+        return buffer.readArray(() => {
+            const item = {} as any;
+            item.chance = buffer.readUInt32LE();
+            item.id = buffer.readFourCC();
+            return item;
+        });
+    });
+    return table;
 }
