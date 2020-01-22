@@ -2,8 +2,12 @@
 
 Converts Warcraft 3 map files to json.
 
-**The unit reader only works for maps that require the expansion.**
+## Notes
+
+The unit reader only works for maps that require the expansion.
+
+## Usage
 
 ```
-wartojson mapDir outDir
+wartojson path/to/map_dir path/to/out_dir
 ```
