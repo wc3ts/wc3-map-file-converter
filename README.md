@@ -9,5 +9,5 @@ The unit reader only works for maps that require the expansion.
 ## Usage
 
 ```
-wartojson path/to/map_dir path/to/out_dir
+wc3-map-file-converter path/to/map_dir path/to/out_dir
 ```

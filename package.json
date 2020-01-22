@@ -1,16 +1,16 @@
 {
-  "name": "wc3-ts-map-file-converter",
+  "name": "wc3-map-file-converter",
   "version": "0.1.0",
   "description": "Warcraft 3 map file converter.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wc3-ts/wc3-ts-map-files.git"
+    "url": "git+https://github.com/wc3-ts/wc3-map-file-converter.git"
   },
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "wartojson": "./dist/wartojson.js"
+    "wc3-map-file-converter": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
