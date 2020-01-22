@@ -13,10 +13,13 @@ export interface Region {
     color: RGBA;
 }
 
-export function read(buffer: WarBuffer): Region[] {
+export function read(buff: Buffer): Region[] {
+    const buffer = new WarBuffer({ buff });
     const version = buffer.readUInt32LE();
     strict.equal(version, 5, 'Unknown regions version');
-    return buffer.readArray(readRegion);
+    const result = buffer.readArray(readRegion);
+    strict.equal(buffer.remaining(), 0);
+    return result;
 }
 
 function readRegion(buffer: WarBuffer): Region {

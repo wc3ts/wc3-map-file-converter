@@ -33,7 +33,9 @@ export interface Info {
     customLightTileset: number;
     waterColor: RGBA;
     prologueScreenModel: string;
-    lua: boolean;
+    scriptLanguage: number;
+    supportedModes: number; // 1 = sd, 2 = hd, 3 = sd and hd
+    gameDataVersion: number;
     players: Player[];
     forces: Force[];
     availableUpgrades: Upgrade[];
@@ -52,8 +54,14 @@ export interface Player {
         x: number;
         y: number;
     };
-    allyLowPrioritiesFlags: number;
-    allyHighPrioritiesFlags: number;
+    ally: {
+        low: number;
+        high: number;
+    };
+    enemy: {
+        low: number;
+        high: number;
+    };
 }
 
 export interface Force {
@@ -86,26 +94,8 @@ export interface RandomItemTable {
     itemSets: any[][];
 }
 
-function readPlayer(buffer: WarBuffer): Player {
-    const player = {} as Player;
-    player.number = buffer.readUInt32LE();
-
-    buffer.readBuffer(8); // TODO unknown
-
-    player.type = buffer.readUInt32LE();
-    player.race = buffer.readUInt32LE();
-    player.fixedStartLocation = buffer.readUInt32LE() === 1;
-    player.name = buffer.readStringNT();
-    player.startLocation = {
-        x: buffer.readFloatLE(),
-        y: buffer.readFloatLE()
-    };
-    player.allyLowPrioritiesFlags = buffer.readUInt32LE();
-    player.allyHighPrioritiesFlags = buffer.readUInt32LE();
-    return player;
-}
-
-export function read(buffer: WarBuffer): Info {
+export function read(buff: Buffer): Info {
+    const buffer = new WarBuffer({ buff });
     const version = buffer.readInt32LE();
     strict.equal(version, 31, 'Unknown info version');
     const mapVersion = buffer.readInt32LE();
@@ -155,19 +145,44 @@ export function read(buffer: WarBuffer): Info {
     info.customLightTileset = buffer.readUInt8();
     info.waterColor = buffer.readRGBA();
 
-    info.lua = buffer.readBool();
+    info.scriptLanguage = buffer.readInt32LE();
+    info.supportedModes = buffer.readInt32LE();
+    info.gameDataVersion = buffer.readInt32LE();
 
-    // TODO adding a third player does not work
     info.players = buffer.readArray(readPlayer);
-
-    buffer.readBuffer(8); // TODO unknown
 
     info.forces = buffer.readArray(readForce);
     info.availableUpgrades = buffer.readArray(readUpgrade);
     info.availableTechnology = buffer.readArray(readTechnology);
     info.randomUnitTables = buffer.readArray(readRandomUnitTable);
     info.randomItemTables = buffer.readArray(readRandomItemTable);
+
+    strict.equal(buffer.remaining(), 0);
+
     return info;
+}
+
+function readPlayer(buffer: WarBuffer): Player {
+    const player = {} as Player;
+    player.number = buffer.readUInt32LE();
+    player.type = buffer.readUInt32LE();
+    player.race = buffer.readUInt32LE();
+    player.fixedStartLocation = buffer.readBool();
+    player.name = buffer.readStringNT();
+    player.startLocation = {
+        x: buffer.readFloatLE(),
+        y: buffer.readFloatLE()
+    };
+    player.ally = {
+        low: buffer.readUInt32LE(),
+        high: buffer.readUInt32LE()
+    };
+    player.enemy = {
+        low: buffer.readUInt32LE(),
+        high: buffer.readUInt32LE()
+    };
+
+    return player;
 }
 
 function readForce(buffer: WarBuffer): Force {

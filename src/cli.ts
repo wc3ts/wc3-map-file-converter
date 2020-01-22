@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
 import { join } from 'path';
-import { readFileSync, writeFileSync } from 'fs';
-import { WarBuffer } from './warbuffer';
-import { info, unit, camera, region } from '.';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { info, unit, camera, region, sound } from '.';
 
 const mapDir = process.argv[2];
 const outDir = process.argv[3];
@@ -28,11 +27,18 @@ const files = [
         reader: region,
         input: 'war3map.w3r',
         output: 'regions.json'
+    },
+    {
+        reader: sound,
+        input: 'war3map.w3s',
+        output: 'sounds.json'
     }
 ];
 
 for (const file of files) {
-    const buffer = new WarBuffer({ buff: readFileSync(join(mapDir, file.input)) });
-    const data = file.reader.read(buffer);
-    writeFileSync(join(outDir, file.output), JSON.stringify(data, null, 4));
+    const path = join(mapDir, file.input);
+    if (existsSync(path)) {
+        const data = file.reader.read(readFileSync(path));
+        writeFileSync(join(outDir, file.output), JSON.stringify(data, null, 4));
+    }
 }

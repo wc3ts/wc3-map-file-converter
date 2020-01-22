@@ -24,10 +24,13 @@ export interface Camera {
     name: string;
 }
 
-export function read(buffer: WarBuffer): Camera[] {
+export function read(buff: Buffer): Camera[] {
+    const buffer = new WarBuffer({ buff });
     const version = buffer.readUInt32LE();
     strict.equal(version, 0, 'Unknown cameras version');
-    return buffer.readArray(readCamera);
+    const result = buffer.readArray(readCamera);
+    strict.equal(buffer.remaining(), 0);
+    return result;
 }
 
 function readCamera(buffer: WarBuffer): Camera {

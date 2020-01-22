@@ -1,5 +1,5 @@
-import { WarBuffer } from './warbuffer';
 import { strict } from 'assert';
+import { WarBuffer } from './warbuffer';
 
 export interface Unit {
     id?: string;
@@ -60,14 +60,17 @@ export interface Ability {
     level: number;
 }
 
-export function read(buffer: WarBuffer): Unit[] {
+export function read(buff: Buffer): Unit[] {
+    const buffer = new WarBuffer({ buff });
     const id = buffer.readBuffer(4).toString();
     strict.equal(id, 'W3do', 'Unknown units id');
     const versionMajor = buffer.readUInt32LE();
     strict.equal(versionMajor, 8, 'Unknown units version');
     const versionMinor = buffer.readInt32LE();
     strict.equal(versionMinor, 11, 'Unknown units minor version');
-    return buffer.readArray(readUnit);
+    const result = buffer.readArray(readUnit);
+    strict.equal(buffer.remaining(), 0);
+    return result;
 }
 
 function readUnit(buffer: WarBuffer): Unit {

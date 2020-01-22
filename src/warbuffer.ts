@@ -32,7 +32,7 @@ export class WarBuffer extends SmartBuffer {
         rgba.blue = this.readUInt8();
         rgba.green = this.readUInt8();
         rgba.red = this.readUInt8();
-        rgba.alpha = this.readUInt8(); // TODO probably just rgb with one byte padding
+        rgba.alpha = this.readUInt8();
         return rgba;
     }
 
