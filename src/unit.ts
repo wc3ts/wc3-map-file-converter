@@ -5,9 +5,7 @@ export interface Unit {
     id?: string;
     variation: number;
     location: Location;
-    /**
-     *  Unit rotation in radians.
-     */
+    /** Unit rotation in radians. */
     face: number;
     scale: Scale;
     skin?: string;
@@ -76,7 +74,6 @@ function readUnit(buffer: WarBuffer): Unit {
     const unit = {} as Unit;
     unit.id = buffer.readFourCC();
     unit.variation = buffer.readUInt32LE();
-    // TODO is the execution order for this guaranteed?
     unit.location = {
         x: buffer.readFloatLE(),
         y: buffer.readFloatLE(),
