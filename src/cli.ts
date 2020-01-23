@@ -2,17 +2,10 @@
 
 import { join } from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import * as info from "./info";
-import * as unit from "./unit";
-import * as camera from "./camera";
-import * as region from "./region";
-import * as sound from "./sound";
-import * as trigger from "./trigger";
+import {  info, unit, camera, region, sound, trigger } from '.';
 
-import { ReaderFunction } from './reader';
-
-interface ReaderInfo {
-    reader: ReaderFunction,
+interface Reader {
+    read: (buff: Buffer) => {} | [];
     input: string,
     output: string,
 }
@@ -20,43 +13,43 @@ interface ReaderInfo {
 const mapDir = process.argv[2];
 const outDir = process.argv[3];
 
-const files: ReaderInfo[] = [
+const readers: Reader[] = [
     {
-        reader: info.read,
+        read: info.read,
         input: 'war3map.w3i',
         output: 'info.json'
     },
     {
-        reader: unit.read,
+        read: unit.read,
         input: 'war3mapUnits.doo',
         output: 'units.json'
     },
     {
-        reader: camera.read,
+        read: camera.read,
         input: 'war3map.w3c',
         output: 'cameras.json'
     },
     {
-        reader: region.read,
+        read: region.read,
         input: 'war3map.w3r',
         output: 'regions.json'
     },
     {
-        reader: sound.read,
+        read: sound.read,
         input: 'war3map.w3s',
         output: 'sounds.json'
     },
     {
-        reader: trigger.read,
+        read: trigger.read,
         input: 'war3map.wtg',
         output: 'triggers.json'
     }
 ];
 
-for (const file of files) {
+for (const file of readers) {
     const path = join(mapDir, file.input);
     if (existsSync(path)) {
-        const data = file.reader(readFileSync(path));
+        const data = file.read(readFileSync(path));
         writeFileSync(join(outDir, file.output), JSON.stringify(data, null, 4));
     }
 }

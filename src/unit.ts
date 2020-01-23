@@ -62,11 +62,11 @@ export interface Ability {
 
 export function read(buff: Buffer): Unit[] {
     const buffer = new WarBuffer({ buff });
-    const id = buffer.readBuffer(4).toString();
+    const id = buffer.readFourCC();
     strict.equal(id, 'W3do', 'Unknown units id');
     const versionMajor = buffer.readUInt32LE();
-    strict.equal(versionMajor, 8, 'Unknown units version');
-    const versionMinor = buffer.readInt32LE();
+    strict.equal(versionMajor, 8, 'Unknown units major version');
+    const versionMinor = buffer.readUInt32LE();
     strict.equal(versionMinor, 11, 'Unknown units minor version');
     const result = buffer.readArray(readUnit);
     strict.equal(buffer.remaining(), 0);
@@ -92,7 +92,7 @@ function readUnit(buffer: WarBuffer): Unit {
     unit.flags = buffer.readUInt8();
     unit.player = buffer.readUInt32LE();
 
-    buffer.readBuffer(2); // TODO unknown
+    strict.equal(buffer.readUInt16LE(), 0); // TODO unknown
 
     unit.health = buffer.readInt32LE();
     unit.mana = buffer.readInt32LE();
