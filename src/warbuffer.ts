@@ -11,8 +11,8 @@ export interface RGBA {
 export class WarBuffer extends SmartBuffer {
     readBool(): boolean {
         const value = this.readUInt32LE();
-        strict(value <= 1, `Boolean value: ${value} is greater than 1`);
-        return value === 1;
+        //strict(value <= 1, `Boolean value: ${value} is greater than 1`);
+        return value !== 0;
     }
 
     readChar(): string {
