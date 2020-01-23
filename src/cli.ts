@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { join } from 'path';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import {  info, unit, camera, region, sound, trigger } from '.';
 
 interface Reader {
@@ -45,6 +45,8 @@ const readers: Reader[] = [
         output: 'triggers.json'
     }
 ];
+
+mkdirSync(outDir, { recursive: true });
 
 for (const file of readers) {
     const path = join(mapDir, file.input);

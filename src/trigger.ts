@@ -91,7 +91,7 @@ export interface Parameter {
     hasSubParameter: boolean;
     subParameter?: SubParameter;
     isArray: boolean;
-    default?: Parameter;
+    index?: Parameter;
 }
 
 export enum SubParameterType {
@@ -251,50 +251,41 @@ export function read(buff: Buffer): File
                 buffer.readUInt32LE() // parent id
                 break;
             default:
-                throw Error('AUUUA');
+                throw Error(`Unknown element type ${elementType}`);
         }
     }
-    console.log(triggerFile);
 
-    console.log('read', buffer.readOffset, 'remaining', buffer.remaining());
-
-    //strict.equal(buffer.remaining(), 0);
+    strict.equal(buffer.remaining(), 0);
 
     return triggerFile;
 }
 
 function readCategory(buffer: WarBuffer): Category {
     const category = {} as Category;
-
     category.id = buffer.readUInt32LE();
     category.name = buffer.readStringNT();
-    category.isComment = buffer.readBool(); // TODO maybe not a bool?
-    buffer.readUInt32LE(); // TODO unknown
-    category.parentId = buffer.readUInt32LE();
+    category.isComment = buffer.readBool();
 
+    strict.equal(buffer.readUInt32LE(), 1); // TODO unknown
+
+    category.parentId = buffer.readUInt32LE();
     return category;
 }
 
 function readTrigger(buffer: WarBuffer, argumentCounts: Record<string, number>): Trigger {
     const trigger = {} as Trigger;
-
     trigger.name = buffer.readStringNT();
     trigger.description = buffer.readStringNT();
     trigger.isComment = buffer.readBool();
     trigger.id = buffer.readUInt32LE();
     trigger.isEnabled = buffer.readBool();
-    trigger.isScript = buffer.readBool(); // TODO throw on is script
+    trigger.isScript = buffer.readBool();
     trigger.isInitiallyDisabled = buffer.readBool();
+
     strict.equal(buffer.readBool(), false); // shouldRunOnInitialization
 
-
     trigger.parentId = buffer.readUInt32LE();
-    //console.log(buffer.readInt32LE()) // TODO unknown
-
-
     trigger.ecas = Array.from({length: buffer.readUInt32LE()}, () => readECA(buffer, argumentCounts, false));
-
-
     return trigger;
 }
 
@@ -324,12 +315,14 @@ function readParameter(buffer: WarBuffer, argumentCounts: Record<string, number>
         if (subParameter.hasParameters) {
             subParameter.parameters = Array.from({length: argumentCounts[subParameter.name]}, () => readParameter(buffer, argumentCounts));
         }
-        buffer.readUInt32LE(); // unknown
+        
+        strict.equal(buffer.readUInt32LE(), 0); // TODO unknown
+
         parameter.subParameter = subParameter;
     }
     parameter.isArray = buffer.readBool();
     if (parameter.isArray) {
-		parameter.default = readParameter(buffer, argumentCounts);
+		parameter.index = readParameter(buffer, argumentCounts);
     }    
     return parameter;
 }
