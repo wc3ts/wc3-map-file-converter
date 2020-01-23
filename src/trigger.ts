@@ -1,10 +1,7 @@
-import { RGBA, WarBuffer } from './warbuffer';
+import { WarBuffer } from './warbuffer';
 import { strict } from 'assert';
-
-import * as ini from 'ini';
-
+import { parse } from 'ini';
 import { readFileSync } from 'fs';
-import { trigger } from '.';
 
 export interface File {
     categoryCount: number,
@@ -122,8 +119,7 @@ export interface Action extends ECA {
 
 export function read(buff: Buffer): File
 {
-    // TODO move away
-    const triggerData = ini.parse(readFileSync('TriggerData.txt', 'utf-8'));
+    const triggerData = parse(readFileSync('TriggerData.txt', 'utf-8'));
     const sections = ['TriggerEvents', 'TriggerConditions', 'TriggerActions', 'TriggerCalls'];
 
     const argumentCounts: Record<string, number> = {};
@@ -151,7 +147,7 @@ export function read(buff: Buffer): File
 
     const buffer = new WarBuffer({ buff });
     const id = buffer.readFourCC();
-    strict.equal(id, 'WTG!', 'Unknown trigger magic');
+    strict.equal(id, 'WTG!');
 
     const unknownVersionPart = buffer.readUInt32LE();
     strict.equal(unknownVersionPart, 0x80000004);
@@ -159,7 +155,6 @@ export function read(buff: Buffer): File
     const version = buffer.readUInt32LE();
     strict.equal(version, 7, 'Map version not Frozen Throne');
 
-    // unknown
     strict.equal(buffer.readUInt32LE(), 1);
     strict.equal(buffer.readUInt32LE(), 0);
     strict.equal(buffer.readUInt32LE(), 0);
@@ -168,52 +163,25 @@ export function read(buff: Buffer): File
     const triggerFile = {} as File;
 
     triggerFile.categoryCount = buffer.readUInt32LE();
-    const deletedCategoryCount = buffer.readUInt32LE();
-    buffer.readBuffer(4 *  deletedCategoryCount);
+    buffer.readBuffer(4 *  buffer.readUInt32LE());
     
     triggerFile.triggerCount = buffer.readUInt32LE();
-    const deletedTriggerCount = buffer.readUInt32LE();
-    buffer.readBuffer(4 *  deletedTriggerCount);
+    buffer.readBuffer(4 *  buffer.readUInt32LE());
 
     triggerFile.commentCount = buffer.readUInt32LE();
-    const deletedCommentCount = buffer.readUInt32LE();
-    buffer.readBuffer(4 *  deletedCommentCount);
+    buffer.readBuffer(4 *  buffer.readUInt32LE());
 
     triggerFile.customScriptCount = buffer.readUInt32LE();
-    const deletedCustomScriptCount = buffer.readUInt32LE();
-    buffer.readBuffer(4 *  deletedCustomScriptCount);
+    buffer.readBuffer(4 *  buffer.readUInt32LE());
 
     triggerFile.variableCount = buffer.readUInt32LE();
-    const deletedVariableCount = buffer.readUInt32LE();
-    buffer.readBuffer(4 *  deletedVariableCount);
+    buffer.readBuffer(4 *  buffer.readUInt32LE());
 
     buffer.readUInt32LE();
     buffer.readUInt32LE();
     buffer.readUInt32LE();
 
-    triggerFile.variableCount = buffer.readUInt32LE();
-
-    triggerFile.variables = [];
-    for (let i = 0; i < triggerFile.variableCount; i++) {
-        const variable = {} as Variable;
-
-        variable.name = buffer.readStringNT();
-        variable.type = buffer.readStringNT();
-
-        strict.equal(buffer.readUInt32LE(), 1);
-
-        variable.isArray = buffer.readBool();
-        variable.arraySize = buffer.readUInt32LE();
-
-        variable.isInitialized = buffer.readBool();
-
-        variable.initialValue = buffer.readStringNT();
-
-        variable.id = buffer.readUInt32LE();
-        variable.parentId = buffer.readUInt32LE();
-
-        triggerFile.variables.push(variable);
-    }
+    triggerFile.variables = buffer.readArray(readVariable);
 
     triggerFile.elementCount = buffer.readUInt32LE();
 
@@ -242,10 +210,9 @@ export function read(buff: Buffer): File
                 const trigger = readTrigger(buffer, argumentCounts);
                 trigger.kind = elementType;
                 triggerFile.triggers.push(trigger);
-
                 break;
             case ElementType.Variable:
-                // variables are already parsed adn saved above we dont need to change anyhting here
+                // variables are already parsed and saved above we dont need to change anything here
                 buffer.readUInt32LE() // id
                 buffer.readStringNT() // name
                 buffer.readUInt32LE() // parent id
@@ -260,13 +227,29 @@ export function read(buff: Buffer): File
     return triggerFile;
 }
 
+function readVariable(buffer: WarBuffer): Variable {
+    const variable = {} as Variable;
+    variable.name = buffer.readStringNT();
+    variable.type = buffer.readStringNT();
+
+    strict.equal(buffer.readUInt32LE(), 1);
+
+    variable.isArray = buffer.readBool();
+    variable.arraySize = buffer.readUInt32LE();
+    variable.isInitialized = buffer.readBool();
+    variable.initialValue = buffer.readStringNT();
+    variable.id = buffer.readUInt32LE();
+    variable.parentId = buffer.readUInt32LE();
+    return variable;
+}
+
 function readCategory(buffer: WarBuffer): Category {
     const category = {} as Category;
     category.id = buffer.readUInt32LE();
     category.name = buffer.readStringNT();
     category.isComment = buffer.readBool();
 
-    strict.equal(buffer.readUInt32LE(), 1); // TODO unknown
+    strict.equal(buffer.readUInt32LE(), 1);
 
     category.parentId = buffer.readUInt32LE();
     return category;
@@ -282,7 +265,7 @@ function readTrigger(buffer: WarBuffer, argumentCounts: Record<string, number>):
     trigger.isScript = buffer.readBool();
     trigger.isInitiallyDisabled = buffer.readBool();
 
-    strict.equal(buffer.readBool(), false); // shouldRunOnInitialization
+    strict.equal(buffer.readBool(), false); // should run on initialization
 
     trigger.parentId = buffer.readUInt32LE();
     trigger.ecas = Array.from({length: buffer.readUInt32LE()}, () => readECA(buffer, argumentCounts, false));
@@ -316,7 +299,7 @@ function readParameter(buffer: WarBuffer, argumentCounts: Record<string, number>
             subParameter.parameters = Array.from({length: argumentCounts[subParameter.name]}, () => readParameter(buffer, argumentCounts));
         }
         
-        strict.equal(buffer.readUInt32LE(), 0); // TODO unknown
+        strict.equal(buffer.readUInt32LE(), 0);
 
         parameter.subParameter = subParameter;
     }
