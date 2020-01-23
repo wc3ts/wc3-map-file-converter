@@ -141,7 +141,7 @@ export function read(buff: Buffer): File
                     .filter(isNaN)
                     .length;
                     if(section === 'TriggerCalls') {
-                        argumentCounts[name]--;
+                        args--;
                     }
                     argumentCounts[name] = args;
                 }
@@ -300,19 +300,14 @@ function readTrigger(buffer: WarBuffer, argumentCounts: Record<string, number>):
 
 function readECA(buffer: WarBuffer, argumentCounts: Record<string, number>, child: boolean): ECA {
     const eca = {} as ECA;
-    eca.kind = buffer.readUInt32LE(); // TODO enum
+    eca.kind = buffer.readUInt32LE();
     if(child) {
         eca.parent = buffer.readUInt32LE();
     }
     eca.name = buffer.readStringNT();
-    eca.isEnabled = buffer.readBool(); // TODO really a bool?
-    console.log('eca', eca.name, argumentCounts[eca.name] ||'FUCK')
+    eca.isEnabled = buffer.readBool();
     eca.parameters = Array.from({length: argumentCounts[eca.name]}, () => readParameter(buffer, argumentCounts));
-
-    const l = buffer.readUInt32LE();
-    //console.log(eca)
-    //console.log('---------------------', child, l)
-    eca.children = Array.from({length: l}, () => readECA(buffer, argumentCounts, true));
+    eca.children = Array.from({length: buffer.readUInt32LE()}, () => readECA(buffer, argumentCounts, true));
     return eca;
 }
 
@@ -320,28 +315,21 @@ function readParameter(buffer: WarBuffer, argumentCounts: Record<string, number>
     const parameter = {} as Parameter;
     parameter.kind = buffer.readUInt32LE();
     parameter.value = buffer.readStringNT();
-    parameter.hasSubParameter = buffer.readBool(); // TODO maybe not a bool?
-
-    console.log('param', parameter.value)
-
+    parameter.hasSubParameter = buffer.readBool();
     if(parameter.hasSubParameter) {
         const subParameter = {} as SubParameter;
         subParameter.kind = buffer.readUInt32LE();
         subParameter.name = buffer.readStringNT();
-        subParameter.hasParameters = buffer.readBool(); // TODO maybe not a bool?
-        console.log('sub', subParameter.name, argumentCounts[subParameter.name] || 'FUCK')
+        subParameter.hasParameters = buffer.readBool();
         if (subParameter.hasParameters) {
             subParameter.parameters = Array.from({length: argumentCounts[subParameter.name]}, () => readParameter(buffer, argumentCounts));
         }
         buffer.readUInt32LE(); // unknown
         parameter.subParameter = subParameter;
-        parameter.isArray = buffer.readBool(); // TODO maybe not a bool?
     }
+    parameter.isArray = buffer.readBool();
     if (parameter.isArray) {
 		parameter.default = readParameter(buffer, argumentCounts);
-    }
-    
-    //console.log(buffer.readUInt32LE()); // TODO unknown
-    
+    }    
     return parameter;
 }
