@@ -36,8 +36,10 @@ export class WarBuffer extends SmartBuffer {
         return rgba;
     }
 
-    readArray<T>(readElement: (buffer: WarBuffer) => T): T[] {
-        const length = this.readUInt32LE();
+    readArray<T>(readElement: (buffer: WarBuffer) => T, length: number | undefined = undefined): T[] {
+        if(length === undefined) {
+            length = this.readUInt32LE();
+        }
         return Array.from({ length }, () => readElement(this));
     }
 }
