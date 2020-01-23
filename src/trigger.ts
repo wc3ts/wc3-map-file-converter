@@ -285,7 +285,7 @@ function readTrigger(buffer: WarBuffer, argumentCounts: Record<string, number>):
     trigger.isEnabled = buffer.readBool();
     trigger.isScript = buffer.readBool(); // TODO throw on is script
     trigger.isInitiallyDisabled = buffer.readBool();
-    trigger.shouldRunOnInitialization = buffer.readBool();
+    strict.equal(buffer.readBool(), false); // shouldRunOnInitialization
 
 
     trigger.parentId = buffer.readUInt32LE();
