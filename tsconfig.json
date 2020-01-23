@@ -4,7 +4,8 @@
         "target": "es2019",
         "outDir": "dist",
         "strict": true,
-        "declaration": true
+        "declaration": true,
+        "sourceMap": true,
     },
     "include": [
         "src/**/*"

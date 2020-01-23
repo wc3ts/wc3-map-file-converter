@@ -82,10 +82,10 @@ export function read(buff: Buffer): Unit[] {
     const buffer = new WarBuffer({ buff });
     const id = buffer.readFourCC();
     strict.equal(id, 'W3do');
-    const versionMajor = buffer.readUInt32LE();
-    strict.equal(versionMajor, 8);
-    const versionMinor = buffer.readUInt32LE();
-    strict.equal(versionMinor, 11);
+    const major = buffer.readUInt32LE();
+    strict.equal(major, 8);
+    const minor = buffer.readUInt32LE();
+    strict.equal(minor, 11);
     const units = buffer.readArray(readUnit);
     strict.equal(buffer.remaining(), 0);
     return units;
