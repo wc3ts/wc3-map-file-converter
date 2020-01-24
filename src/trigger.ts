@@ -100,19 +100,19 @@ export interface Func {
 
 const triggerData = parse(readFileSync('TriggerData.txt', 'utf-8'));
 
-function getParameterDataTypes(func: Func): string[] {
-    const sections = {
-        [FuncType.Event]: 'TriggerEvents',
-        [FuncType.Condition]: 'TriggerConditions',
-        [FuncType.Action]: 'TriggerActions',
-        [FuncType.Call]: 'TriggerCalls'
-    };
-    const paramsTypes = triggerData[sections[func.type]][func.name].split(',')
+function getParameterDataTypes(type: number, name: string): string[] {
+    const sections = [
+        'TriggerEvents',
+        'TriggerConditions',
+        'TriggerActions',
+        'TriggerCalls'
+    ];
+    const paramsTypes = triggerData[sections[type]][name].split(',')
         .map((v: any) => v.trim())
         .filter((v: any) => v !== '')
         .filter((v: any) => v !== 'nothing')
         .filter(isNaN);
-    if(func.type == FuncType.Call) {
+    if(type === 3) {
         paramsTypes.shift(); // remove the return value
     }
     return paramsTypes;
@@ -294,6 +294,9 @@ function readNode(buffer: WarBuffer, child: boolean): Node {
     node.name = buffer.readStringNT();
     node.isEnabled = buffer.readBool();
     node.parameters = buffer.readArray(b => readParameter(b), getParameterCount(node.name));
+    node.parameters.forEach((parameter, i) => {
+        parameter.dataType = getParameterDataTypes(node.type, node.name)[i];
+    });
     node.nodes = buffer.readArray(b => readNode(b, true));
     return node;
 }
@@ -318,8 +321,8 @@ function readFunction(buffer: WarBuffer) : Func
     func.name = buffer.readStringNT();
     if (buffer.readBool()) { // has parameters
         func.parameters = Array.from({length: getParameterCount(func.name)}, () => readParameter(buffer));
-        getParameterDataTypes(func).forEach((dataType, i) => {
-            func.parameters[i].dataType = dataType;
+        func.parameters.forEach((parameter, i) => {
+            parameter.dataType = getParameterDataTypes(func.type, func.name)[i];
         });
     }
 
