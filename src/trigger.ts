@@ -145,6 +145,18 @@ function getParameterCount(name: string) {
     return parameterCount[name];
 }
 
+function substituteParameterValue(value: string): string {
+    const a = triggerData['TriggerParams'][value];
+    if(a) {
+        const b = a.split(',').map((v: any) => v.trim())
+        .filter((v: any) => v !== '')
+        .filter((v: any) => v !== 'nothing')
+        .filter(isNaN);
+        return b[1];
+    }
+    return value;
+}
+
 export function read(buff: Buffer): Data
 {
     const buffer = new WarBuffer({ buff });
@@ -289,7 +301,7 @@ function readNode(buffer: WarBuffer, child: boolean): Node {
 function readParameter(buffer: WarBuffer): Parameter {
     const parameter = {} as Parameter;
     parameter.type = buffer.readUInt32LE();
-    parameter.value = buffer.readStringNT();
+    parameter.value = substituteParameterValue(buffer.readStringNT());
     if(buffer.readBool()) { // is return value of function
         parameter.func = readFunction(buffer);
     }
