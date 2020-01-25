@@ -10,7 +10,7 @@ export interface Data {
 
 export interface Variable {
     name: string,
-    type: string,
+    kind: string,
     isArray: boolean,
     arraySize: number,
     isInitialized: boolean,
@@ -19,7 +19,7 @@ export interface Variable {
     parentId: number
 }
 
-export enum ItemType {
+export enum ItemKind {
 	Category = 4,
 	Trigger = 8,
 	Comment = 16,
@@ -29,19 +29,19 @@ export enum ItemType {
 
 /** Either a categrory trigger, comment, script or variable  */
 export interface Item {
-    type: ItemType;
+    kind: ItemKind;
     id: number;
     name: string;
     parentId: number;
 }
 
 export interface Category extends Item  {
-    type: ItemType.Category;
+    kind: ItemKind.Category;
     isComment: boolean;
 }
 
 export interface Trigger extends Item {
-    type: ItemType.Script | ItemType.Comment | ItemType.Trigger;
+    kind: ItemKind.Script | ItemKind.Comment | ItemKind.Trigger;
     isComment: boolean;
     description: string;
     isEnabled: boolean;
@@ -50,7 +50,7 @@ export interface Trigger extends Item {
     nodes: Node[];
 }
 
-export enum NodeType {
+export enum NodeKind {
 	Event = 0,
 	Condition = 1,
     Action = 2,
@@ -59,7 +59,7 @@ export enum NodeType {
 
 /** A event, condition or action. */
 export interface Node {
-    type: NodeType
+    kind: NodeKind
     name: string,
     isEnabled: boolean,
     parameters: Parameter[],
@@ -67,7 +67,7 @@ export interface Node {
     parent?: number
 }
 
-export enum ParameterType {
+export enum ParameterKind {
     Invalid = -1,
     Preset,
     Variable,
@@ -76,8 +76,8 @@ export enum ParameterType {
 }
 
 export interface Parameter {
-    type: ParameterType;
-    dataType: string;
+    kind: ParameterKind;
+    type: string;
     value: string;
     /** Set if this parameter is the return value of the given function. */
     func?: Func;
@@ -86,7 +86,7 @@ export interface Parameter {
 }
 
 export interface Func {
-    type: NodeType;
+    kind: NodeKind;
     name: string;
     parameters: Parameter[];
 }
@@ -144,7 +144,7 @@ export function read(buff: Buffer, triggerData: TriggerData): Data
 
     data.items = Array
         .from({length: elementCount - 1}, () => readItem(buffer, triggerData))
-        .filter(item => item.type !== ItemType.Variable);
+        .filter(item => item.kind !== ItemKind.Variable);
 
     strict.equal(buffer.remaining(), 0);
 
@@ -152,30 +152,30 @@ export function read(buff: Buffer, triggerData: TriggerData): Data
 }
 
 function readItem(buffer: WarBuffer, triggerData: TriggerData): Item | never {
-    const type = buffer.readUInt32LE() as ItemType;
-        switch (type) {
-            case ItemType.Category:
+    const kind = buffer.readUInt32LE() as ItemKind;
+        switch (kind) {
+            case ItemKind.Category:
                 return readCategory(buffer);
-            case ItemType.Trigger:
-            case ItemType.Comment:
-            case ItemType.Script:
-                return readTrigger(buffer, triggerData, type);
-            case ItemType.Variable:
+            case ItemKind.Trigger:
+            case ItemKind.Comment:
+            case ItemKind.Script:
+                return readTrigger(buffer, triggerData, kind);
+            case ItemKind.Variable:
                 return {
-                    type: type,
+                    kind: kind,
                     id: buffer.readUInt32LE(),
                     name: buffer.readStringNT(),
                     parentId: buffer.readUInt32LE()
                 };
             default:
-                throw Error(`Unknown element type ${type}`);
+                throw Error(`Unknown element kind ${kind}`);
         }
 }
 
 function readVariable(buffer: WarBuffer): Variable {
     const variable = {} as Variable;
     variable.name = buffer.readStringNT();
-    variable.type = buffer.readStringNT();
+    variable.kind = buffer.readStringNT();
 
     strict.equal(buffer.readUInt32LE(), 1); // TODO boolean?
 
@@ -190,7 +190,7 @@ function readVariable(buffer: WarBuffer): Variable {
 
 function readCategory(buffer: WarBuffer): Category {
     const category = {} as Category;
-    category.type = ItemType.Category;
+    category.kind = ItemKind.Category;
     category.id = buffer.readUInt32LE();
     category.name = buffer.readStringNT();
     category.isComment = buffer.readBool();
@@ -201,9 +201,9 @@ function readCategory(buffer: WarBuffer): Category {
     return category;
 }
 
-function readTrigger(buffer: WarBuffer, triggerData: TriggerData, type: ItemType.Script | ItemType.Comment | ItemType.Trigger): Trigger {
+function readTrigger(buffer: WarBuffer, triggerData: TriggerData, kind: ItemKind.Script | ItemKind.Comment | ItemKind.Trigger): Trigger {
     const trigger = {} as Trigger;
-    trigger.type = type;
+    trigger.kind = kind;
     trigger.name = buffer.readStringNT();
     trigger.description = buffer.readStringNT();
     trigger.isComment = buffer.readBool();
@@ -221,15 +221,15 @@ function readTrigger(buffer: WarBuffer, triggerData: TriggerData, type: ItemType
 
 function readNode(buffer: WarBuffer, triggerData: TriggerData, child: boolean): Node {
     const node = {} as Node;
-    node.type = buffer.readUInt32LE();
+    node.kind = buffer.readUInt32LE();
     if(child) {
         node.parent = buffer.readUInt32LE();
     }
     node.name = buffer.readStringNT();
     node.isEnabled = buffer.readBool();
-    node.parameters = buffer.readArray(b => readParameter(b, triggerData), getArgumentTypes(triggerData, node.type, node.name).length);
+    node.parameters = buffer.readArray(b => readParameter(b, triggerData), getArgumentTypes(triggerData, node.kind, node.name).length);
     node.parameters.forEach((parameter, i) => {
-        parameter.dataType = getArgumentTypes(triggerData, node.type, node.name)[i];
+        parameter.type = getArgumentTypes(triggerData, node.kind, node.name)[i];
     });
     node.nodes = buffer.readArray(b => readNode(b, triggerData, true));
     return node;
@@ -237,7 +237,7 @@ function readNode(buffer: WarBuffer, triggerData: TriggerData, child: boolean): 
 
 function readParameter(buffer: WarBuffer, triggerData: TriggerData): Parameter {
     const parameter = {} as Parameter;
-    parameter.type = buffer.readUInt32LE();
+    parameter.kind = buffer.readUInt32LE();
     parameter.value = substituteParameterValue(triggerData, buffer.readStringNT());
     if(buffer.readBool()) { // is return value of function
         parameter.func = readFunction(buffer, triggerData);
@@ -251,12 +251,12 @@ function readParameter(buffer: WarBuffer, triggerData: TriggerData): Parameter {
 function readFunction(buffer: WarBuffer, triggerData: TriggerData) : Func
 {
     const func = {} as Func;
-    func.type = buffer.readUInt32LE();
+    func.kind = buffer.readUInt32LE();
     func.name = buffer.readStringNT();
     if (buffer.readBool()) { // has parameters
-        func.parameters = Array.from({length: getArgumentTypes(triggerData, func.type, func.name).length}, () => readParameter(buffer, triggerData));
+        func.parameters = Array.from({length: getArgumentTypes(triggerData, func.kind, func.name).length}, () => readParameter(buffer, triggerData));
         func.parameters.forEach((parameter, i) => {
-            parameter.dataType = getArgumentTypes(triggerData, func.type, func.name)[i];
+            parameter.type = getArgumentTypes(triggerData, func.kind, func.name)[i];
         });
     }
 
