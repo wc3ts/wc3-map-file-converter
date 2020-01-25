@@ -13,6 +13,7 @@ interface Reader {
 
 const mapDir = process.argv[2];
 const outDir = process.argv[3];
+const triggerDataFile = process.argv[4];
 
 const readers: Reader[] = [
     {
@@ -44,7 +45,7 @@ const readers: Reader[] = [
         read: trigger.read,
         input: 'war3map.wtg',
         output: 'triggers.json',
-        args: [triggerData.read(readFileSync('TriggerData.txt'))]
+        args: [triggerData.read(readFileSync(triggerDataFile))]
     }
 ];
 
