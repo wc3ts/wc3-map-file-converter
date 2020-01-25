@@ -1,7 +1,6 @@
 import { WarBuffer } from './warbuffer';
 import { strict } from 'assert';
-import { parse } from 'ini';
-import { readFileSync } from 'fs';
+import { getArgumentTypes, substituteParameterValue, TriggerData } from './triggerData';
 
 export interface Data {
     mapName: string;
@@ -53,8 +52,9 @@ export interface Trigger extends Item {
 
 export enum NodeType {
 	Event = 0,
-	Condtion = 1,
-	Action = 2
+	Condition = 1,
+    Action = 2,
+    Call = 3,
 }
 
 /** A event, condition or action. */
@@ -85,79 +85,13 @@ export interface Parameter {
     index?: Parameter;
 }
 
-export enum FuncType {
-	Event = 0,
-	Condition = 1,
-    Action = 2,
-    Call = 3,
-}
-
 export interface Func {
-    type: FuncType;
+    type: NodeType;
     name: string;
     parameters: Parameter[];
 }
 
-const triggerData = parse(readFileSync('TriggerData.txt', 'utf-8'));
-
-function getParameterDataTypes(type: number, name: string): string[] {
-    const sections = [
-        'TriggerEvents',
-        'TriggerConditions',
-        'TriggerActions',
-        'TriggerCalls'
-    ];
-    const paramsTypes = triggerData[sections[type]][name].split(',')
-        .map((v: any) => v.trim())
-        .filter((v: any) => v !== '')
-        .filter((v: any) => v !== 'nothing')
-        .filter(isNaN);
-    if(type === 3) {
-        paramsTypes.shift(); // remove the return value
-    }
-    return paramsTypes;
-}
-
-function getParameterCount(name: string) {
-    const sections = ['TriggerEvents', 'TriggerConditions', 'TriggerActions', 'TriggerCalls'];
-    const parameterCount: Record<string, number> = {};
-    for (const section of sections) {
-        for (const name in triggerData[section]) {
-            if (triggerData[section].hasOwnProperty(name)) {
-                const parameters = triggerData[section][name];
-                if (!(name.startsWith('_') || name.startsWith('//'))) {
-                    let args = 0;
-                    args += parameters.split(','
-                    )
-                    .map((v: any) => v.trim())
-                    .filter((v: any) => v !== '')
-                    .filter((v: any) => v !== 'nothing')
-                    .filter(isNaN)
-                    .length;
-                    if(section === 'TriggerCalls') {
-                        args--;
-                    }
-                    parameterCount[name] = args;
-                }
-            }
-        }
-    }
-    return parameterCount[name];
-}
-
-function substituteParameterValue(value: string): string {
-    const a = triggerData['TriggerParams'][value];
-    if(a) {
-        const b = a.split(',').map((v: any) => v.trim())
-        .filter((v: any) => v !== '')
-        .filter((v: any) => v !== 'nothing')
-        .filter(isNaN);
-        return b[1];
-    }
-    return value;
-}
-
-export function read(buff: Buffer): Data
+export function read(buff: Buffer, triggerData: TriggerData): Data
 {
     const buffer = new WarBuffer({ buff });
     const id = buffer.readFourCC();
@@ -209,7 +143,7 @@ export function read(buff: Buffer): Data
     strict.equal(buffer.readInt32LE(), -1);
 
     data.items = Array
-        .from({length: elementCount - 1}, () => readItem(buffer))
+        .from({length: elementCount - 1}, () => readItem(buffer, triggerData))
         .filter(item => item.type !== ItemType.Variable);
 
     strict.equal(buffer.remaining(), 0);
@@ -217,7 +151,7 @@ export function read(buff: Buffer): Data
     return data;
 }
 
-function readItem(buffer: WarBuffer): Item | never {
+function readItem(buffer: WarBuffer, triggerData: TriggerData): Item | never {
     const type = buffer.readUInt32LE() as ItemType;
         switch (type) {
             case ItemType.Category:
@@ -225,7 +159,7 @@ function readItem(buffer: WarBuffer): Item | never {
             case ItemType.Trigger:
             case ItemType.Comment:
             case ItemType.Script:
-                return readTrigger(buffer, type);
+                return readTrigger(buffer, triggerData, type);
             case ItemType.Variable:
                 return {
                     type: type,
@@ -267,7 +201,7 @@ function readCategory(buffer: WarBuffer): Category {
     return category;
 }
 
-function readTrigger(buffer: WarBuffer, type: ItemType.Script | ItemType.Comment | ItemType.Trigger): Trigger {
+function readTrigger(buffer: WarBuffer, triggerData: TriggerData, type: ItemType.Script | ItemType.Comment | ItemType.Trigger): Trigger {
     const trigger = {} as Trigger;
     trigger.type = type;
     trigger.name = buffer.readStringNT();
@@ -281,11 +215,11 @@ function readTrigger(buffer: WarBuffer, type: ItemType.Script | ItemType.Comment
     strict.equal(buffer.readBool(), false); // should run on initialization
 
     trigger.parentId = buffer.readUInt32LE();
-    trigger.nodes = buffer.readArray(b => readNode(buffer, false));
+    trigger.nodes = buffer.readArray(b => readNode(buffer, triggerData, false));
     return trigger;
 }
 
-function readNode(buffer: WarBuffer, child: boolean): Node {
+function readNode(buffer: WarBuffer, triggerData: TriggerData, child: boolean): Node {
     const node = {} as Node;
     node.type = buffer.readUInt32LE();
     if(child) {
@@ -293,36 +227,36 @@ function readNode(buffer: WarBuffer, child: boolean): Node {
     }
     node.name = buffer.readStringNT();
     node.isEnabled = buffer.readBool();
-    node.parameters = buffer.readArray(b => readParameter(b), getParameterCount(node.name));
+    node.parameters = buffer.readArray(b => readParameter(b, triggerData), getArgumentTypes(triggerData, node.type, node.name).length);
     node.parameters.forEach((parameter, i) => {
-        parameter.dataType = getParameterDataTypes(node.type, node.name)[i];
+        parameter.dataType = getArgumentTypes(triggerData, node.type, node.name)[i];
     });
-    node.nodes = buffer.readArray(b => readNode(b, true));
+    node.nodes = buffer.readArray(b => readNode(b, triggerData, true));
     return node;
 }
 
-function readParameter(buffer: WarBuffer): Parameter {
+function readParameter(buffer: WarBuffer, triggerData: TriggerData): Parameter {
     const parameter = {} as Parameter;
     parameter.type = buffer.readUInt32LE();
-    parameter.value = substituteParameterValue(buffer.readStringNT());
+    parameter.value = substituteParameterValue(triggerData, buffer.readStringNT());
     if(buffer.readBool()) { // is return value of function
-        parameter.func = readFunction(buffer);
+        parameter.func = readFunction(buffer, triggerData);
     }
     if (buffer.readBool()) { // is array
-		parameter.index = readParameter(buffer);
+		parameter.index = readParameter(buffer, triggerData);
     }
     return parameter;
 }
 
-function readFunction(buffer: WarBuffer) : Func
+function readFunction(buffer: WarBuffer, triggerData: TriggerData) : Func
 {
     const func = {} as Func;
     func.type = buffer.readUInt32LE();
     func.name = buffer.readStringNT();
     if (buffer.readBool()) { // has parameters
-        func.parameters = Array.from({length: getParameterCount(func.name)}, () => readParameter(buffer));
+        func.parameters = Array.from({length: getArgumentTypes(triggerData, func.type, func.name).length}, () => readParameter(buffer, triggerData));
         func.parameters.forEach((parameter, i) => {
-            parameter.dataType = getParameterDataTypes(func.type, func.name)[i];
+            parameter.dataType = getArgumentTypes(triggerData, func.type, func.name)[i];
         });
     }
 
