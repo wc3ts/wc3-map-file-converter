@@ -50,6 +50,11 @@ export interface Trigger extends Item {
     nodes: Node[];
 }
 
+// Type guard
+export function isItemTrigger(item: Item): item is Trigger {
+    return item.kind === ItemKind.Script || item.kind === ItemKind.Comment || item.kind === ItemKind.Trigger;
+}
+
 export enum NodeKind {
 	Event = 0,
 	Condition = 1,
